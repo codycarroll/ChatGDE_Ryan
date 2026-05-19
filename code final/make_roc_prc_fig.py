@@ -117,7 +117,7 @@ ax_prc.axhline(baseline, color='#888888', linestyle=':', lw=1.3,
                label=f'Random (AUCPR≈{baseline:.3f})')
 ax_prc.set_xlabel('Recall', fontsize=14)
 ax_prc.set_ylabel('Precision', fontsize=14)
-ax_prc.text(0.02, 0.97, 'a.', transform=ax_prc.transAxes, fontsize=15, fontweight='bold', va='top')
+ax_prc.text(-0.08, 1.02, 'a.', transform=ax_prc.transAxes, fontsize=15, fontweight='bold', va='bottom')
 ax_prc.set_xlim(-0.02, 1.02)
 ax_prc.set_ylim(0, 1.05)
 ax_prc.legend(fontsize=11, loc='lower left', framealpha=0.92,
@@ -135,7 +135,7 @@ for label, df_m, color in COMPUTED_MODELS:
 ax_roc.plot([0, 1], [0, 1], color='#888888', linestyle=':', lw=1.3, label='Random (AUCROC=0.500)')
 ax_roc.set_xlabel('False Positive Rate', fontsize=14)
 ax_roc.set_ylabel('True Positive Rate', fontsize=14)
-ax_roc.text(0.02, 0.97, 'b.', transform=ax_roc.transAxes, fontsize=15, fontweight='bold', va='top')
+ax_roc.text(-0.08, 1.02, 'b.', transform=ax_roc.transAxes, fontsize=15, fontweight='bold', va='bottom')
 ax_roc.set_xlim(-0.02, 1.02)
 ax_roc.set_ylim(0, 1.05)
 ax_roc.legend(fontsize=11, loc='lower right', framealpha=0.92,

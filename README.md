@@ -1,95 +1,60 @@
 # ChatGDE
 
-This repo contains the implementation of ChatGDE.
+Code and data for our paper on automating the review of California Groundwater Sustainability Plans (GSPs) using large language models.
 
-## Table of Contents
+## What this is
 
-1. [Introduction](#introduction)
-2. [Features](#features)
-3. [Experiments](#experiments)
+Under California's Sustainable Groundwater Management Act (SGMA), Groundwater Sustainability Agencies must submit GSPs for state review — a process that involves manually scoring each plan against a detailed rubric. This project tests whether LLMs can do that scoring reliably enough to assist human reviewers.
 
-## Introduction
+The pipeline retrieves the most relevant chunks from each GSP PDF using hybrid BM25 + cosine retrieval, reranks them with a fine-tuned cross-encoder, and passes the top 15 chunks to an LLM to answer each rubric question (Yes / Somewhat / No + confidence).
 
-Efficient groundwater management is essential for environmental sustainability, particularly in regions like California. Groundwater-dependent ecosystems (GDEs) are critical for biodiversity, water quality, and carbon storage but are vulnerable to groundwater depletion. The California Sustainable Groundwater Management Act (SGMA) mandates Groundwater Sustainability Agencies (GSAs) to develop and review Groundwater Sustainability Plans (GSPs), a time-consuming and costly process.
+We evaluated nine model configurations across five trial GSPs: GPT-3.5 FT, GPT-4o (base and fine-tuned), GPT-4.1 (base and fine-tuned), GPT-5.5, OpenAI o3, Claude Sonnet 4.6, and Claude Opus 4.7 (vision). The best model (fine-tuned GPT-4.1 v4) was then run on all 62 high- and medium-priority California GSPs.
 
-ChatGDE was developed to automate portions of the GSP review process, leveraging large language models (LLMs) like GPT to improve efficiency and reduce costs. By employing techniques like Retrieval Augmented Generation (RAG), fine-tuning, and prompt engineering, ChatGDE provides preliminary evaluations aligned with human reviews, achieving up to 73% agreement with expert evaluations. This represents a significant advancement in applying AI to streamline environmental policy tasks.
+Best binary accuracy on trial GSPs: **75.9%** (GPT-4.1 FT v4). Among base models, Claude Sonnet 4.6 and o3 both reach **75.5%** without any fine-tuning.
 
-## Features
+## Repo structure
 
 ```
-ChatGDE
-├── GSP_Drafts
-│   ├── Rubrics
-│   │   ├── 1_BigValley_DraftGSP_ScoringRubric.csv
-│   │   ├── 11_Butte_DraftGSP_ScoringRubric.csv
-│   │   ├── 14_EastContraCosta_DraftGSP_ScoringRubric.csv
-│   │   ├── 15_Fillmore_DraftGSP_ScoringRubric.csv
-│   │   ├── 30_SonomaValley_DraftGSP_ScoringRubric.csv
-│   │   ├── 46_Modesto_DraftGSP_ScoringRubric.csv
-│   │   ├── 50_SanLuisObispoValley_DraftGSP_ScoringRubric.csv
-│   │   └── 55_SantaMargarita_DraftGSP_ScoringRubric.csv
-│   ├── 1_BigValley.pdf
-│   ├── 11_Butte.pdf
-│   ├── 14_ECC.pdf
-│   ├── 15_Fillmore.pdf
-│   ├── 30_Sonoma.pdf
-│   ├── 46_Modesto.pdf
-│   ├── 50_SLO.pdf
-│   └── 55_SanMargarita.pdf
-├── FinalPaperExperimentsNoKey.ipynb
-├── FinalPaperVisualizationsNoKey.ipynb
-├── prompts3.py
-└── prompts_2.py
+GSP_Drafts/
+  Rubrics/       scoring rubric CSVs for all 65 basins
+  *.pdf          trial GSP PDFs (Big Valley, Butte, ECC, Fillmore, Sonoma, SLO)
+
+code final/
+  run_*.py       eval scripts for each model
+  make_*_fig.py  figure generation scripts
+  GSP_All.ipynb  main analysis notebook
+
+results/
+  results_*.csv                    per-question model outputs, all 9 models
+  checkpoint_*.json                resumable checkpoints
+  gpt41ft_allgsps_per_gsp_metrics.csv   per-GSP accuracy + AUC for all 62 GSPs
+
+images/
+  roc_prc_comparison.png
+  binary_accuracy_{overall,by_gsp}.png
+  class_accuracy_{overall,by_gsp}.png
+  class_recall_comparison.png
+  confusion_matrices.png
 ```
 
+## Results summary
 
+| Model | Binary Acc. | ROC AUC | PRC AUC |
+|---|---|---|---|
+| GPT-4o (base) | 62.7% | 0.711 | 0.590 |
+| GPT-3.5 FT | 72.8% | 0.693 | 0.631 |
+| GPT-4o FT | 73.1% | 0.770 | 0.696 |
+| GPT-4.1 (base) | 73.0% | 0.759 | 0.639 |
+| GPT-5.5 (base) | 71.8% | 0.723 | 0.632 |
+| o3 + Reranker | 75.5% | 0.762 | 0.636 |
+| Claude Sonnet 4.6 | 75.5% | 0.749 | 0.639 |
+| Claude Opus 4.7 (vision) | 73.9% | 0.736 | 0.616 |
+| **GPT-4.1 FT v4** | **75.9%** | **0.773** | **0.711** |
 
-This repo is composed of the following:
-- `GSP_Drafts/` Contains PDF files of Groundwater Sustainability Plans (GSPs) for various counties. Add or update files here based on the plans you want to evaluate.
-- `Rubrics/' Contains CSV files of human-scored rubrics corresponding to the GSPs. Add or update files here based on which county’s scoring rubric you want to include.
-- `FinalPaperExperimentsNoKey.ipynb` A Jupyter Notebook containing the experiments performed for the paper, focusing on model optimization and evaluation techniques.
-- `FinalPaperVisualizationsNoKey.ipynb` A Jupyter Notebook containing the visualizations used in the research paper, detailing results and performance metrics.
-- `prompts3.py` Contains the third version of prompts used for the model, reflecting binary classification.
-- `prompts_2.py` Contains the second version of prompts used for the model, with our best prompt engineering results. Includes the "No", "Somewhat" and "Yes" categories.
+Trial GSPs (n=241 after excluding NotApplicable rows). Binary = Yes vs. {Somewhat + No}.
 
-## Experiments
+GPT-4.1 FT v4 applied to all 62 California GSPs: **75.6% accuracy** (57 non-trial GSPs), mean ROC AUC = 0.767.
 
-To optimize ChatGDE’s performance, we conducted a series of experiments, focusing on vector storage, prompt engineering, and model fine-tuning:
+## Notes
 
-## **Structural Experiments**:
-
-	1.	Vector Storehouse:
-	•	Levels: Compared CHROMA and FAISS for storing text embeddings.
-	•	Results: FAISS achieved higher accuracy (52.8%) compared to CHROMA (33.9%).
-	2.	Vector Split Strategy:
-	•	Levels: Split GSPs by page vs. fixed chunk sizes.
-	•	Results: Page-based splitting provided better accuracy by retaining context integrity.
-	3.	Vector Retrieval Quantity:
-	•	Levels: Set k = 5, 10, 15, where k is the number of vectors retrieved per query.
-	•	Results: k=10 yielded the best balance between accuracy and avoiding context length errors.
-	4.	ChatGPT Model Versions:
-	•	Levels: Tested GPT-3.5 Turbo, GPT-4, and GPT-4o.
-	•	Results: Fine-tuned GPT-4o outperformed others, particularly in precision and recall metrics.
-
-## **Prompt Engineering**:
-
-	1.	Standardizing Prompts:
-	•	Adjusted formatting for consistency and spelled out acronyms.
-	•	Results: Standardization had minimal impact on model accuracy.
-	2.	Critical Instruction Emphasis:
-	•	Modified prompts to encourage “skeptical evaluation.”
-	•	Results: Improved response distribution and accuracy modestly.
-	3.	Confidence Levels:
-	•	Levels: Added instructions for models to include confidence levels with responses.
-	•	Results: Enabled better evaluation of model certainty and performance trade-offs.
-
-## **Fine-Tuning and Simplification**:
-
-	1.	Binary Classification:
-	•	Merged “No” and “Somewhat” into a single category.
-	•	Results: Improved accuracy to 64% but reduced precision and recall.
-	2.	Fine-Tuning:
-	•	Models: Fine-tuned GPT-3.5 and GPT-4o using custom GSP training data.
-	•	Results: Fine-tuned GPT-4o achieved the highest performance (accuracy: 73%, AUCROC: 0.77).
-
-These experiments demonstrate the potential of LLMs to augment, though not entirely replace, human expertise in environmental policy reviews. Future work will focus on ensemble approaches and testing updated LLMs, possibly outside of the OpenAI ecosystem.
+API keys are not included. Scripts expect `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` as environment variables. Large embedding caches, model weights, and most GSP PDFs are excluded from this repo via `.gitignore` — see the paper for the full data pipeline.
