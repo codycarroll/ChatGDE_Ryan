@@ -134,7 +134,7 @@ offsets  = np.linspace(-(n_models - 1) / 2, (n_models - 1) / 2, n_models) * widt
 
 def draw_class_accuracy_panel(ax, true_list, pred_by_model, title,
                               ylabel=True, include_overall=False, show_labels=False,
-                              tick_fs=12, label_fs=13):
+                              tick_fs=14, label_fs=16):
     n_per_cls = {cls: sum(t == cls for t in true_list) for cls in CLASSES}
     n_total   = sum(n_per_cls.values())
 
@@ -174,7 +174,7 @@ def draw_class_accuracy_panel(ax, true_list, pred_by_model, title,
     ax.grid(axis='y', alpha=0.3)
     ax.spines[['top', 'right']].set_visible(False)
     if ylabel:
-        ax.set_ylabel('Accuracy', fontsize=label_fs)
+        ax.set_ylabel('Accuracy', fontsize=label_fs, fontweight='bold')
 
 # ── Overall: all 5 GSPs pooled ────────────────────────────────────────────────
 true_overall = sum((rubric_by_gsp[c] for c in GSP_CNAMES), [])
@@ -183,12 +183,52 @@ pred_overall = {name: sum((preds[c] for c in GSP_CNAMES), []) for name, preds, _
 fig, ax = plt.subplots(figsize=(14, 5.5), dpi=150)
 draw_class_accuracy_panel(ax, true_overall, pred_overall, 'Overall (all 5 Trial GSPs)',
                           include_overall=True, show_labels=True)
+ax.set_title('Model Performance by Response Category', fontsize=19, fontweight='bold', pad=10)
 handles, labels = ax.get_legend_handles_labels()
-ax.legend(handles, labels, fontsize=11, loc='upper right', framealpha=0.92, ncol=2)
+ax.legend(handles, labels, fontsize=13, loc='upper center',
+          bbox_to_anchor=(0.5, -0.18), framealpha=0.92, ncol=5)
 plt.tight_layout()
+plt.subplots_adjust(bottom=0.22)
 plt.savefig('images/class_accuracy_overall.png', dpi=300, bbox_inches='tight')
 plt.close()
 print('Saved: images/class_accuracy_overall.png')
+
+def draw_overall_panel(ax, true_list, pred_by_model, binary=False, tick_fs=15, label_fs=17):
+    if binary:
+        def _bin(lbl):
+            return 'Yes' if lbl == 'Yes' else ('No+Somewhat' if lbl in ('No', 'Somewhat') else None)
+        true_eff  = [_bin(t) for t in true_list]
+        pred_eff  = {nm: [_bin(p) for p in preds] for nm, preds in pred_by_model.items()}
+        valid_cls = {'Yes', 'No+Somewhat'}
+    else:
+        true_eff  = true_list
+        pred_eff  = pred_by_model
+        valid_cls = set(CLASSES)
+
+    n_total = sum(1 for t in true_eff if t in valid_cls)
+    names   = [name.replace('\n', ' ') for name, _, _ in MODELS]
+    colors  = [c for _, _, c in MODELS]
+    accs    = [
+        sum(t == p for t, p in zip(true_eff, pred_eff[name]) if t in valid_cls) / n_total
+        for name, _, _ in MODELS
+    ]
+
+    xpos = np.arange(len(MODELS))
+    for mi, (name, _, color) in enumerate(MODELS):
+        bar = ax.bar(xpos[mi], accs[mi], color=color, alpha=0.88,
+                     edgecolor='white', linewidth=0.4, label=name)
+        ax.text(xpos[mi], accs[mi] + 0.012, f'{accs[mi]:.0%}',
+                ha='center', va='bottom', fontsize=12, fontweight='bold', color=color)
+
+    ax.set_xticks(xpos)
+    ax.set_xticklabels(names, fontsize=tick_fs, rotation=35, ha='right')
+    ax.set_xlim(-0.6, len(MODELS) - 0.4)
+    ax.set_ylim(0, 1.15)
+    ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
+    ax.tick_params(axis='y', labelsize=tick_fs)
+    ax.set_ylabel('Accuracy', fontsize=label_fs, fontweight='bold')
+    ax.grid(axis='y', alpha=0.3)
+    ax.spines[['top', 'right']].set_visible(False)
 
 # ── Per-GSP: 2×3 grid (5 panels + 1 legend slot) ─────────────────────────────
 fig, axes = plt.subplots(2, 3, figsize=(20, 9), dpi=150)
@@ -198,16 +238,22 @@ for panel_idx, (cname, label) in enumerate(zip(GSP_CNAMES, GSP_LABELS)):
     pred_gsp = {name: preds[cname] for name, preds, _ in MODELS}
     draw_class_accuracy_panel(axes[panel_idx], rubric_by_gsp[cname], pred_gsp,
                               label, ylabel=(panel_idx % 3 == 0), show_labels=False,
-                              tick_fs=16, label_fs=17)
-    axes[panel_idx].set_title(f'{chr(ord("a") + panel_idx)}.  {label}',
-                              fontsize=16, fontweight='bold')
+                              tick_fs=18, label_fs=20)
+    axes[panel_idx].set_title(label, fontsize=19, fontweight='bold')
+    axes[panel_idx].text(0.02, 1.0, f'{chr(ord("a") + panel_idx)}.',
+                         transform=axes[panel_idx].transAxes,
+                         fontsize=18, fontweight='bold', va='bottom')
 
-axes[5].axis('off')
+draw_overall_panel(axes[5], true_overall, pred_overall, binary=False)
+axes[5].set_title('Overall', fontsize=19, fontweight='bold')
+axes[5].text(0.02, 1.0, 'f.', transform=axes[5].transAxes,
+             fontsize=18, fontweight='bold', va='bottom')
+
 handles, labels = axes[0].get_legend_handles_labels()
-axes[5].legend(handles, labels, loc='center', fontsize=15, framealpha=0.92,
-               title='Model', title_fontsize=15)
-
-plt.tight_layout()
+fig.legend(handles, labels, loc='lower center', fontsize=14, framealpha=0.92,
+           ncol=5, title='Model', title_fontsize=14)
+fig.suptitle('Model Performance by Response Category', fontsize=22, fontweight='bold', y=0.99)
+plt.tight_layout(rect=[0, 0.10, 1, 0.96])
 plt.savefig('images/class_accuracy_by_gsp.png', dpi=300, bbox_inches='tight')
 plt.close()
 print('Saved: images/class_accuracy_by_gsp.png')
@@ -222,7 +268,7 @@ def binarize(label):
 
 def draw_binary_panel(ax, true_list, pred_by_model, title, ylabel=True,
                       include_overall=False, show_labels=False,
-                      tick_fs=12, label_fs=13):
+                      tick_fs=14, label_fs=16):
     true_bin  = [binarize(t) for t in true_list]
     n_per_cls = {cls: sum(t == cls for t in true_bin if t) for cls in BIN_CLASSES}
     n_total   = sum(n_per_cls.values())
@@ -260,15 +306,18 @@ def draw_binary_panel(ax, true_list, pred_by_model, title, ylabel=True,
     ax.grid(axis='y', alpha=0.3)
     ax.spines[['top', 'right']].set_visible(False)
     if ylabel:
-        ax.set_ylabel('Accuracy', fontsize=label_fs)
+        ax.set_ylabel('Accuracy', fontsize=label_fs, fontweight='bold')
 
 # Overall binary
 fig, ax = plt.subplots(figsize=(11, 5.5), dpi=150)
 draw_binary_panel(ax, true_overall, pred_overall, 'Overall — Binary (Yes vs. No+Somewhat)',
                   include_overall=True, show_labels=True)
+ax.set_title('Model Performance by Response Category', fontsize=19, fontweight='bold', pad=10)
 handles, labels = ax.get_legend_handles_labels()
-ax.legend(handles, labels, fontsize=11, loc='upper right', framealpha=0.92, ncol=2)
+ax.legend(handles, labels, fontsize=13, loc='upper center',
+          bbox_to_anchor=(0.5, -0.18), framealpha=0.92, ncol=5)
 plt.tight_layout()
+plt.subplots_adjust(bottom=0.22)
 plt.savefig('images/binary_accuracy_overall.png', dpi=300, bbox_inches='tight')
 plt.close()
 print('Saved: images/binary_accuracy_overall.png')
@@ -280,78 +329,109 @@ for panel_idx, (cname, label) in enumerate(zip(GSP_CNAMES, GSP_LABELS)):
     pred_gsp = {name: preds[cname] for name, preds, _ in MODELS}
     draw_binary_panel(axes[panel_idx], rubric_by_gsp[cname], pred_gsp,
                       label, ylabel=(panel_idx % 3 == 0), show_labels=False,
-                      tick_fs=16, label_fs=17)
-    axes[panel_idx].set_title(f'{chr(ord("a") + panel_idx)}.  {label}',
-                              fontsize=16, fontweight='bold')
-axes[5].axis('off')
+                      tick_fs=18, label_fs=20)
+    axes[panel_idx].set_title(label, fontsize=19, fontweight='bold')
+    axes[panel_idx].text(0.02, 1.0, f'{chr(ord("a") + panel_idx)}.',
+                         transform=axes[panel_idx].transAxes,
+                         fontsize=18, fontweight='bold', va='bottom')
+draw_overall_panel(axes[5], true_overall, pred_overall, binary=True)
+axes[5].set_title('Overall', fontsize=19, fontweight='bold')
+axes[5].text(0.02, 1.0, 'f.', transform=axes[5].transAxes,
+             fontsize=18, fontweight='bold', va='bottom')
+
 handles, labels = axes[0].get_legend_handles_labels()
-axes[5].legend(handles, labels, loc='center', fontsize=15, framealpha=0.92,
-               title='Model', title_fontsize=15)
-plt.tight_layout()
+fig.legend(handles, labels, loc='lower center', fontsize=14, framealpha=0.92,
+           ncol=5, title='Model', title_fontsize=14)
+fig.suptitle('Model Performance by GSP', fontsize=22, fontweight='bold', y=0.99)
+plt.tight_layout(rect=[0, 0.10, 1, 0.96])
 plt.savefig('images/binary_accuracy_by_gsp.png', dpi=300, bbox_inches='tight')
 plt.close()
 print('Saved: images/binary_accuracy_by_gsp.png')
 
 # ════════════════════════════════════════════════════════════════════════════
-# Figure 5 — Confusion matrices (count top, row-fraction bottom) — 2×9 grid
+# Figures — Overall accuracy by GSP (no class breakdown), binary + 3-class
+# ════════════════════════════════════════════════════════════════════════════
+for binary, ylabel_str, suptitle_str, outfile in [
+    (True,  'Binary Accuracy',  'Model Performance by GSP',               'images/binary_accuracy_by_gsp_overall.png'),
+    (False, '3-Class Accuracy', 'Model Performance by GSP',                'images/class_accuracy_by_gsp_overall.png'),
+]:
+    fig, axes = plt.subplots(2, 3, figsize=(20, 9), dpi=150)
+    axes = axes.flatten()
+    for panel_idx, (cname, label) in enumerate(zip(GSP_CNAMES, GSP_LABELS)):
+        pred_gsp = {name: preds[cname] for name, preds, _ in MODELS}
+        draw_overall_panel(axes[panel_idx], rubric_by_gsp[cname], pred_gsp, binary=binary)
+        axes[panel_idx].set_title(label, fontsize=19, fontweight='bold')
+        axes[panel_idx].text(0.02, 1.0, f'{chr(ord("a") + panel_idx)}.',
+                             transform=axes[panel_idx].transAxes,
+                             fontsize=18, fontweight='bold', va='bottom')
+        if panel_idx % 3 == 0:
+            axes[panel_idx].set_ylabel(ylabel_str, fontsize=20, fontweight='bold')
+    draw_overall_panel(axes[5], true_overall, pred_overall, binary=binary)
+    axes[5].set_title('Overall', fontsize=19, fontweight='bold')
+    axes[5].text(0.02, 1.0, 'f.', transform=axes[5].transAxes,
+                 fontsize=18, fontweight='bold', va='bottom')
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='lower center', fontsize=14, framealpha=0.92,
+               ncol=5, title='Model', title_fontsize=14)
+    fig.suptitle(suptitle_str, fontsize=22, fontweight='bold', y=0.99)
+    plt.tight_layout(rect=[0, 0.10, 1, 0.96])
+    plt.savefig(outfile, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f'Saved: {outfile}')
+
+# ════════════════════════════════════════════════════════════════════════════
+# Figure 5 — Confusion matrices — 3×3 grid (one panel per model)
 # ════════════════════════════════════════════════════════════════════════════
 
-# Overall true + pred for each model
-true_all = sum((rubric_by_gsp[c] for c in GSP_CNAMES), [])
-# Only rows where true is Yes/Somewhat/No
+true_all   = sum((rubric_by_gsp[c] for c in GSP_CNAMES), [])
 active_idx = [i for i, t in enumerate(true_all) if t in CLASSES]
 true_active = [true_all[i] for i in active_idx]
 
-fig, axes = plt.subplots(2, len(MODELS), figsize=(20, 6), dpi=150,
+nrows, ncols = 3, 3
+fig, axes = plt.subplots(nrows, ncols, figsize=(13, 13), dpi=150,
                          constrained_layout=True)
 
 for mi, (name, preds_by_gsp, color) in enumerate(MODELS):
+    row, col    = divmod(mi, ncols)
+    ax          = axes[row, col]
     pred_all    = sum((preds_by_gsp[c] for c in GSP_CNAMES), [])
     pred_active = [pred_all[i] for i in active_idx]
     mat_count   = confusion_matrix_3class(true_active, pred_active)
-    # Row-normalize (true-class recall fractions)
     row_sums    = mat_count.sum(axis=1, keepdims=True).astype(float)
     mat_frac    = np.where(row_sums > 0, mat_count / row_sums, 0.0)
 
-    for row_idx, (mat, fmt, title_suffix) in enumerate([
-        (mat_count, 'd',    'Count'),
-        (mat_frac,  '.2f',  'Fraction'),
-    ]):
-        ax = axes[row_idx, mi]
-        vmax = mat.max() if row_idx == 0 else 1.0
-        im = ax.imshow(mat, cmap='Blues', vmin=0, vmax=vmax, aspect='equal')
+    ax.imshow(mat_frac, cmap='Blues', vmin=0, vmax=1, aspect='equal')
 
-        for r in range(3):
-            for c in range(3):
-                val     = mat[r, c]
-                txt     = f'{val:{fmt}}' if fmt == 'd' else f'{val:.2f}'
-                bg_dark = val > vmax * 0.55
-                ax.text(c, r, txt, ha='center', va='center', fontsize=12,
-                        fontweight='bold',
-                        color='white' if bg_dark else '#222222')
+    for r in range(3):
+        for c in range(3):
+            frac    = mat_frac[r, c]
+            count   = mat_count[r, c]
+            bg_dark = frac > 0.55
+            txt_col = 'white' if bg_dark else '#222222'
+            ax.text(c, r, f'{frac:.0%}\n(n={count})',
+                    ha='center', va='center', fontsize=13,
+                    fontweight='bold', color=txt_col, linespacing=1.4)
 
-        ax.set_xticks(range(3))
-        ax.set_yticks(range(3))
-        if row_idx == 0:
-            ax.set_title(name.replace('\n', ' '), fontsize=12, fontweight='bold',
-                         color=color, pad=8)
-        if row_idx == 1:
-            ax.set_xticklabels(CLASSES, fontsize=11, rotation=45, ha='right')
-        else:
-            ax.set_xticklabels([])
-        if mi == 0:
-            ax.set_yticklabels(CLASSES, fontsize=11)
-            ax.set_ylabel(title_suffix, fontsize=12, fontweight='bold', labelpad=6)
-        else:
-            ax.set_yticklabels([])
+    ax.set_xticks(range(3))
+    ax.set_yticks(range(3))
+    ax.set_title(name.replace('\n', ' '), fontsize=15, fontweight='bold',
+                 color=color, pad=8)
+    if row == nrows - 1:
+        ax.set_xticklabels(CLASSES, fontsize=13, rotation=45, ha='right')
+    else:
+        ax.set_xticklabels([])
+    if col == 0:
+        ax.set_yticklabels(CLASSES, fontsize=13)
+    else:
+        ax.set_yticklabels([])
 
-        # Diagonal highlight
-        for d in range(3):
-            ax.add_patch(plt.Rectangle((d - 0.5, d - 0.5), 1, 1,
-                                       fill=False, edgecolor='#FF6B35', lw=1.8))
+    for d in range(3):
+        ax.add_patch(plt.Rectangle((d - 0.5, d - 0.5), 1, 1,
+                                   fill=False, edgecolor='#FF6B35', lw=2.0))
 
-fig.supxlabel('Predicted Response', fontsize=13, fontweight='bold')
-fig.supylabel('True Response', fontsize=13, fontweight='bold')
+fig.suptitle('Confusion Matrices (Row-Normalized)', fontsize=19, fontweight='bold')
+fig.supxlabel('Predicted Response', fontsize=15, fontweight='bold')
+fig.supylabel('True Response', fontsize=15, fontweight='bold')
 
 plt.savefig('images/confusion_matrices.png', dpi=300, bbox_inches='tight')
 plt.close()

@@ -96,12 +96,13 @@ COMPUTED_MODELS = [
 # ════════════════════════════════════════════════════════════════════════════
 # Figure 1 — ROC + PRC (all solid, color only)
 # ════════════════════════════════════════════════════════════════════════════
-fig, (ax_prc, ax_roc) = plt.subplots(1, 2, figsize=(14, 6), dpi=150)
+fig, (ax_roc, ax_prc) = plt.subplots(1, 2, figsize=(13, 9), dpi=150)
 
 for ax in (ax_prc, ax_roc):
     ax.grid(alpha=0.25, linestyle='--')
     ax.spines[['top', 'right']].set_visible(False)
-    ax.tick_params(labelsize=13)
+    ax.tick_params(labelsize=17)
+    ax.set_box_aspect(1)
 
 # PRC
 for label, _, _, prc_pts, prc_auc, color in PAPER_MODELS:
@@ -115,13 +116,14 @@ for label, df_m, color in COMPUTED_MODELS:
 baseline = (df_o3[df_o3['Human Answers'].isin(['Yes','No','Somewhat'])]['Human Answers'] == 'Yes').mean()
 ax_prc.axhline(baseline, color='#888888', linestyle=':', lw=1.3,
                label=f'Random (AUCPR≈{baseline:.3f})')
-ax_prc.set_xlabel('Recall', fontsize=14)
-ax_prc.set_ylabel('Precision', fontsize=14)
-ax_prc.text(-0.08, 1.02, 'a.', transform=ax_prc.transAxes, fontsize=15, fontweight='bold', va='bottom')
+ax_prc.set_xlabel('Recall', fontsize=19, fontweight='bold')
+ax_prc.set_ylabel('Precision', fontsize=19, fontweight='bold')
+ax_prc.text(0.5, 1.0, 'Precision-Recall Curve', transform=ax_prc.transAxes,
+            fontsize=20, fontweight='bold', va='bottom', ha='center')
+ax_prc.text(0.0, 1.0, 'b.', transform=ax_prc.transAxes,
+            fontsize=20, fontweight='bold', va='bottom', ha='left')
 ax_prc.set_xlim(-0.02, 1.02)
 ax_prc.set_ylim(0, 1.05)
-ax_prc.legend(fontsize=11, loc='lower left', framealpha=0.92,
-              edgecolor='#cccccc', handlelength=2.2)
 
 # ROC
 for label, roc_pts, roc_auc, _, _, color in PAPER_MODELS:
@@ -133,18 +135,74 @@ for label, df_m, color in COMPUTED_MODELS:
     ax_roc.plot(fpr, tpr, color=color, lw=2.0, label=f'{label} (AUCROC={roc_auc:.3f})')
 
 ax_roc.plot([0, 1], [0, 1], color='#888888', linestyle=':', lw=1.3, label='Random (AUCROC=0.500)')
-ax_roc.set_xlabel('False Positive Rate', fontsize=14)
-ax_roc.set_ylabel('True Positive Rate', fontsize=14)
-ax_roc.text(-0.08, 1.02, 'b.', transform=ax_roc.transAxes, fontsize=15, fontweight='bold', va='bottom')
+ax_roc.set_xlabel('False Positive Rate', fontsize=19, fontweight='bold')
+ax_roc.set_ylabel('True Positive Rate', fontsize=19, fontweight='bold')
+ax_roc.text(0.5, 1.0, 'ROC Curve', transform=ax_roc.transAxes,
+            fontsize=20, fontweight='bold', va='bottom', ha='center')
+ax_roc.text(0.0, 1.0, 'a.', transform=ax_roc.transAxes,
+            fontsize=20, fontweight='bold', va='bottom', ha='left')
 ax_roc.set_xlim(-0.02, 1.02)
 ax_roc.set_ylim(0, 1.05)
-ax_roc.legend(fontsize=11, loc='lower right', framealpha=0.92,
-              edgecolor='#cccccc', handlelength=2.2)
 
+leg_kw = dict(fontsize=11, ncol=1, framealpha=0.92, edgecolor='#cccccc', handlelength=1.5)
+ax_roc.legend(loc='lower right', **leg_kw)
+ax_prc.legend(loc='lower left', **leg_kw)
 plt.tight_layout()
 plt.savefig('images/roc_prc_comparison.png', dpi=300, bbox_inches='tight')
 plt.close()
 print('Saved: images/roc_prc_comparison.png')
+
+# ════════════════════════════════════════════════════════════════════════════
+# Figure 1b — same but with titled subplots instead of a./b. labels
+# ════════════════════════════════════════════════════════════════════════════
+fig, (ax_roc, ax_prc) = plt.subplots(1, 2, figsize=(13, 9), dpi=150)
+
+for ax in (ax_prc, ax_roc):
+    ax.grid(alpha=0.25, linestyle='--')
+    ax.spines[['top', 'right']].set_visible(False)
+    ax.tick_params(labelsize=17)
+    ax.set_box_aspect(1)
+
+# PRC
+for label, _, _, prc_pts, prc_auc, color in PAPER_MODELS:
+    xs, ys = zip(*prc_pts)
+    ax_prc.plot(xs, ys, color=color, lw=2.0, label=f'{label} (AUCPR={prc_auc:.3f})')
+
+for label, df_m, color in COMPUTED_MODELS:
+    _, _, _, rec, prec, prc_auc = compute_curves(df_m)
+    ax_prc.plot(rec, prec, color=color, lw=2.0, label=f'{label} (AUCPR={prc_auc:.3f})')
+
+ax_prc.axhline(baseline, color='#888888', linestyle=':', lw=1.3,
+               label=f'Random (AUCPR≈{baseline:.3f})')
+ax_prc.set_title('Precision-Recall Curve', fontsize=20, fontweight='bold', pad=10)
+ax_prc.set_xlabel('Recall', fontsize=19, fontweight='bold')
+ax_prc.set_ylabel('Precision', fontsize=19, fontweight='bold')
+ax_prc.set_xlim(-0.02, 1.02)
+ax_prc.set_ylim(0, 1.05)
+
+# ROC
+for label, roc_pts, roc_auc, _, _, color in PAPER_MODELS:
+    xs, ys = zip(*roc_pts)
+    ax_roc.plot(xs, ys, color=color, lw=2.0, label=f'{label} (AUCROC={roc_auc:.3f})')
+
+for label, df_m, color in COMPUTED_MODELS:
+    fpr, tpr, roc_auc, _, _, _ = compute_curves(df_m)
+    ax_roc.plot(fpr, tpr, color=color, lw=2.0, label=f'{label} (AUCROC={roc_auc:.3f})')
+
+ax_roc.plot([0, 1], [0, 1], color='#888888', linestyle=':', lw=1.3, label='Random (AUCROC=0.500)')
+ax_roc.set_title('ROC Curve', fontsize=20, fontweight='bold', pad=10)
+ax_roc.set_xlabel('False Positive Rate', fontsize=19, fontweight='bold')
+ax_roc.set_ylabel('True Positive Rate', fontsize=19, fontweight='bold')
+ax_roc.set_xlim(-0.02, 1.02)
+ax_roc.set_ylim(0, 1.05)
+
+leg_kw = dict(fontsize=11, ncol=1, framealpha=0.92, edgecolor='#cccccc', handlelength=1.5)
+ax_roc.legend(loc='lower right', **leg_kw)
+ax_prc.legend(loc='lower left', **leg_kw)
+plt.tight_layout()
+plt.savefig('images/roc_prc_comparison_titled.png', dpi=300, bbox_inches='tight')
+plt.close()
+print('Saved: images/roc_prc_comparison_titled.png')
 
 # ── Print AUC table ───────────────────────────────────────────────────────────
 print(f"\n{'Model':<24}  {'AUCROC':>8}  {'AUCPR':>8}")
@@ -257,18 +315,18 @@ for mi, (name, _, color) in enumerate(CKPT_MODELS):
                   color=color, alpha=0.88, edgecolor='white', linewidth=0.4)
     for bar, val in zip(bars, vals):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.012,
-                f'{val:.0%}', ha='center', va='bottom', fontsize=8,
+                f'{val:.0%}', ha='center', va='bottom', fontsize=10,
                 fontweight='bold', color=color)
 
 xlabel = [f'{cls}\n(n={n_per_cls[cls]})' for cls in CLASSES]
 ax.set_xticks(x)
-ax.set_xticklabels(xlabel, fontsize=14)
+ax.set_xticklabels(xlabel, fontsize=16)
 ax.set_xlim(x[0] - 0.55, x[-1] + 0.55)
-ax.set_ylabel('Recall (fraction correct)', fontsize=14)
+ax.set_ylabel('Recall (fraction correct)', fontsize=16, fontweight='bold')
 ax.set_ylim(0, 1.15)
 ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(xmax=1))
-ax.tick_params(labelsize=13)
-ax.legend(fontsize=11, loc='upper right', framealpha=0.92, ncol=2)
+ax.tick_params(labelsize=15)
+ax.legend(fontsize=13, loc='upper right', framealpha=0.92, ncol=2)
 ax.grid(axis='y', alpha=0.3)
 ax.spines[['top', 'right']].set_visible(False)
 
