@@ -10,7 +10,7 @@ The pipeline retrieves the most relevant chunks from each GSP PDF using hybrid B
 
 We evaluated nine model configurations across five trial GSPs: GPT-3.5 FT, GPT-4o (base and fine-tuned), GPT-4.1 (base and fine-tuned), GPT-5.5, OpenAI o3, Claude Sonnet 4.6, and Claude Opus 4.7 (vision). The best model (fine-tuned GPT-4.1 v4) was then run on all 62 high- and medium-priority California GSPs.
 
-Best binary accuracy on trial GSPs: **75.9%** (GPT-4.1 FT v4). Among base models, Claude Sonnet 4.6 and o3 both reach **75.5%** without any fine-tuning.
+Best binary accuracy on trial GSPs: **75.9%** (GPT-4.1 FT v4). Among base models, o3 and Claude Sonnet 4.6 both reach **75.5%** without any fine-tuning.
 
 ## Repo structure
 
@@ -41,12 +41,12 @@ images/
 
 | Model | Binary Acc. | ROC AUC | PRC AUC |
 |---|---|---|---|
-| GPT-4o (base) | 62.7% | 0.711 | 0.590 |
-| GPT-3.5 FT | 72.8% | 0.693 | 0.631 |
-| GPT-4o FT | 73.1% | 0.770 | 0.696 |
+| GPT-4o (base) | 73.9% | 0.711 | 0.590 |
+| GPT-3.5 FT | 71.4% | 0.693 | 0.631 |
+| GPT-4o FT | 76.8% | 0.770 | 0.696 |
 | GPT-4.1 (base) | 73.0% | 0.759 | 0.639 |
 | GPT-5.5 (base) | 71.8% | 0.723 | 0.632 |
-| o3 + Reranker | 75.5% | 0.762 | 0.636 |
+| o3 | 75.5% | 0.762 | 0.636 |
 | Claude Sonnet 4.6 | 75.5% | 0.749 | 0.639 |
 | Claude Opus 4.7 (vision) | 73.9% | 0.736 | 0.616 |
 | **GPT-4.1 FT v4** | **75.9%** | **0.773** | **0.711** |

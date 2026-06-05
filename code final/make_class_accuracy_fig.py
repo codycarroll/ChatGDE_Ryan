@@ -127,6 +127,66 @@ MODELS = [
      '#666666'),
 ]
 
+# ── CSV-based binary predictions (score ≥ 0.5 → Yes, else No) ────────────────
+# Matches the Rocs_ scoring used in Table 4 and ROC/PRC figures for consistency.
+_CSV_GSP = {
+    'BigValley':           'BigValley',
+    'EastContraCosta':     'East Contra Costa',
+    'Fillmore':            'Fillmore',
+    'SonomaValley':        'Sonoma',
+    'SanLuisObispoValley': 'San Luis Obispo',
+}
+
+def _load_csv_bin(csv_path):
+    df   = pd.read_csv(csv_path)
+    sc   = [c for c in df.columns if c.startswith('Rocs_')][0]
+    gcol = 'GSP' if 'GSP' in df.columns else df.columns[1]
+    return {cname: ['Yes' if s >= 0.5 else 'No'
+                    for s in df[df[gcol] == _CSV_GSP[cname]][sc]]
+            for cname in GSP_CNAMES}
+
+def _load_opus_csv_bin():
+    slugs = {'BigValley': 'bigvalley', 'EastContraCosta': 'eastcontracosta',
+             'Fillmore': 'fillmore', 'SonomaValley': 'sonoma',
+             'SanLuisObispoValley': 'sanluisobispovalley'}
+    out = {}
+    for cname, slug in slugs.items():
+        df = pd.read_csv(sorted(glob.glob(
+            f'results/results_opus47_vision_{slug}_*.csv'))[-1])
+        sc = [c for c in df.columns if c.startswith('Rocs_')][0]
+        out[cname] = ['Yes' if s >= 0.5 else 'No' for s in df[sc]]
+    return out
+
+MODELS_BIN = [
+    ('GPT-3.5 FT',
+     _load_csv_bin(sorted(glob.glob('results/results_gpt35ftv4_trial5_*.csv'))[-1]),
+     '#E69F00'),
+    ('GPT-4o',
+     _load_csv_bin(sorted(glob.glob('results/results_gpt4o_trial5_*.csv'))[-1]),
+     '#56B4E9'),
+    ('GPT-4o FT',
+     _load_csv_bin(sorted(glob.glob('results/results_gpt4oftv4_trial5_*.csv'))[-1]),
+     '#0072B2'),
+    ('GPT-4.1',
+     _load_csv_bin(sorted(glob.glob('results/results_gpt41_trial5_*.csv'))[-1]),
+     '#009E73'),
+    ('GPT-4.1 FT',
+     _load_csv_bin(sorted(glob.glob('results/results_gpt41ftv4_trial5_*.csv'))[-1]),
+     '#D55E00'),
+    ('GPT-5.5',
+     _load_csv_bin(sorted(glob.glob('results/results_gpt55_trial5_*.csv'))[-1]),
+     '#CC79A7'),
+    ('o3',
+     _load_csv_bin('results/results_o3_finetuned_20260312_174405.csv'),
+     '#000000'),
+    ('Sonnet 4.6',
+     _load_csv_bin(sorted(glob.glob('results/results_sonnet46_trial5_*.csv'))[-1]),
+     '#C9A800'),
+    ('Opus 4.7\n(vision)',
+     _load_opus_csv_bin(),
+     '#666666'),
+]
+
 n_models = len(MODELS)
 x        = np.arange(len(CLASSES))
 width    = 0.08
@@ -177,8 +237,9 @@ def draw_class_accuracy_panel(ax, true_list, pred_by_model, title,
         ax.set_ylabel('Accuracy', fontsize=label_fs, fontweight='bold')
 
 # ── Overall: all 5 GSPs pooled ────────────────────────────────────────────────
-true_overall = sum((rubric_by_gsp[c] for c in GSP_CNAMES), [])
-pred_overall = {name: sum((preds[c] for c in GSP_CNAMES), []) for name, preds, _ in MODELS}
+true_overall     = sum((rubric_by_gsp[c] for c in GSP_CNAMES), [])
+pred_overall     = {name: sum((preds[c] for c in GSP_CNAMES), []) for name, preds, _ in MODELS}
+bin_pred_overall = {name: sum((preds[c] for c in GSP_CNAMES), []) for name, preds, _ in MODELS_BIN}
 
 fig, ax = plt.subplots(figsize=(14, 5.5), dpi=150)
 draw_class_accuracy_panel(ax, true_overall, pred_overall, 'Overall (all 5 Trial GSPs)',
@@ -310,7 +371,7 @@ def draw_binary_panel(ax, true_list, pred_by_model, title, ylabel=True,
 
 # Overall binary
 fig, ax = plt.subplots(figsize=(11, 5.5), dpi=150)
-draw_binary_panel(ax, true_overall, pred_overall, 'Overall — Binary (Yes vs. No+Somewhat)',
+draw_binary_panel(ax, true_overall, bin_pred_overall, 'Overall — Binary (Yes vs. No+Somewhat)',
                   include_overall=True, show_labels=True)
 ax.set_title('Model Performance by Response Category', fontsize=19, fontweight='bold', pad=10)
 handles, labels = ax.get_legend_handles_labels()
@@ -326,7 +387,7 @@ print('Saved: images/binary_accuracy_overall.png')
 fig, axes = plt.subplots(2, 3, figsize=(20, 9), dpi=150)
 axes = axes.flatten()
 for panel_idx, (cname, label) in enumerate(zip(GSP_CNAMES, GSP_LABELS)):
-    pred_gsp = {name: preds[cname] for name, preds, _ in MODELS}
+    pred_gsp = {name: preds[cname] for name, preds, _ in MODELS_BIN}
     draw_binary_panel(axes[panel_idx], rubric_by_gsp[cname], pred_gsp,
                       label, ylabel=(panel_idx % 3 == 0), show_labels=False,
                       tick_fs=18, label_fs=20)
@@ -334,7 +395,7 @@ for panel_idx, (cname, label) in enumerate(zip(GSP_CNAMES, GSP_LABELS)):
     axes[panel_idx].text(0.02, 1.0, f'{chr(ord("a") + panel_idx)}.',
                          transform=axes[panel_idx].transAxes,
                          fontsize=18, fontweight='bold', va='bottom')
-draw_overall_panel(axes[5], true_overall, pred_overall, binary=True)
+draw_overall_panel(axes[5], true_overall, bin_pred_overall, binary=True)
 axes[5].set_title('Overall', fontsize=19, fontweight='bold')
 axes[5].text(0.02, 1.0, 'f.', transform=axes[5].transAxes,
              fontsize=18, fontweight='bold', va='bottom')
@@ -355,10 +416,12 @@ for binary, ylabel_str, suptitle_str, outfile in [
     (True,  'Binary Accuracy',  'Model Performance by GSP',               'images/binary_accuracy_by_gsp_overall.png'),
     (False, '3-Class Accuracy', 'Model Performance by GSP',                'images/class_accuracy_by_gsp_overall.png'),
 ]:
+    _pred_src  = MODELS_BIN     if binary else MODELS
+    _pred_pool = bin_pred_overall if binary else pred_overall
     fig, axes = plt.subplots(2, 3, figsize=(20, 9), dpi=150)
     axes = axes.flatten()
     for panel_idx, (cname, label) in enumerate(zip(GSP_CNAMES, GSP_LABELS)):
-        pred_gsp = {name: preds[cname] for name, preds, _ in MODELS}
+        pred_gsp = {name: preds[cname] for name, preds, _ in _pred_src}
         draw_overall_panel(axes[panel_idx], rubric_by_gsp[cname], pred_gsp, binary=binary)
         axes[panel_idx].set_title(label, fontsize=19, fontweight='bold')
         axes[panel_idx].text(0.02, 1.0, f'{chr(ord("a") + panel_idx)}.',
@@ -366,7 +429,7 @@ for binary, ylabel_str, suptitle_str, outfile in [
                              fontsize=18, fontweight='bold', va='bottom')
         if panel_idx % 3 == 0:
             axes[panel_idx].set_ylabel(ylabel_str, fontsize=20, fontweight='bold')
-    draw_overall_panel(axes[5], true_overall, pred_overall, binary=binary)
+    draw_overall_panel(axes[5], true_overall, _pred_pool, binary=binary)
     axes[5].set_title('Overall', fontsize=19, fontweight='bold')
     axes[5].text(0.02, 1.0, 'f.', transform=axes[5].transAxes,
                  fontsize=18, fontweight='bold', va='bottom')
